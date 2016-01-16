@@ -171,7 +171,7 @@ public:
 
   virtual void Log(std::string const& s) final
   {
-    HADESMEM_DETAIL_TRACE_A(s.c_str());
+    HADESMEM_DETAIL_TRACE_FORMAT_A("%s", s.c_str());
 
     auto& log = hadesmem::cerberus::GetImGuiLogWindow();
     log.AddLog("%s\n", s.c_str());
@@ -1931,6 +1931,7 @@ void OnFrameImgui(hadesmem::cerberus::RenderApi api, void* /*device*/)
 
       try
       {
+        // TODO: Make this fail on an empty string.
         hadesmem::cerberus::LoadPlugin(
           hadesmem::detail::MultiByteToWideChar(plugin_buf));
       }
@@ -1941,6 +1942,7 @@ void OnFrameImgui(hadesmem::cerberus::RenderApi api, void* /*device*/)
       }
     }
 
+    // TODO: Add an easier way to unload individual plugins (dropdown list?).
     ImGui::SameLine();
     if (ImGui::Button("Unload"))
     {
@@ -1948,6 +1950,7 @@ void OnFrameImgui(hadesmem::cerberus::RenderApi api, void* /*device*/)
 
       try
       {
+        // TODO: Make this actually error out when we can't find the module.
         hadesmem::cerberus::UnloadPlugin(
           hadesmem::detail::MultiByteToWideChar(plugin_buf));
       }

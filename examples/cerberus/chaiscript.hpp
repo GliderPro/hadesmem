@@ -32,6 +32,8 @@ public:
     std::function<OnInitializeChaiScriptContextCallback> const& callback) = 0;
 
   virtual void UnregisterOnInitializeChaiScriptContext(std::size_t id) = 0;
+
+  virtual chaiscript::ChaiScript& GetGlobalContext() = 0;
 };
 
 class ChaiScriptScript
@@ -56,5 +58,7 @@ private:
 chaiscript::ChaiScript& GetGlobalChaiScriptContext();
 
 ChaiScriptInterface& GetChaiScriptInterface() noexcept;
+
+void ReloadDefaultChaiScriptContext(bool run_callbacks);
 }
 }

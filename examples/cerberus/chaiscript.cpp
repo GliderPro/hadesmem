@@ -61,15 +61,37 @@ public:
     auto& callbacks = GetOnInitializeChaiScriptContextCallbacks();
     return callbacks.Unregister(id);
   }
+
+  virtual chaiscript::ChaiScript& GetGlobalContext() final
+  {
+    return hadesmem::cerberus::GetGlobalChaiScriptContext();
+  }
 };
 
-void InitializeChaiScriptContext(chaiscript::ChaiScript& chai)
+void InitializeChaiScriptContext(chaiscript::ChaiScript& chai,
+                                 bool run_callbacks)
 {
   chai.add(hadesmem::cerberus::GetCerberusModule());
   chai.add(hadesmem::cerberus::GetImGuiChaiScriptModule());
 
-  auto const& callbacks = GetOnInitializeChaiScriptContextCallbacks();
-  callbacks.Run(chai);
+  if (run_callbacks)
+  {
+    auto const& callbacks = GetOnInitializeChaiScriptContextCallbacks();
+    callbacks.Run(chai);
+  }
+}
+
+std::unique_ptr<chaiscript::ChaiScript>& GetGlobalChaiScriptContextPtr()
+{
+  static auto chai =
+    std::make_unique<chaiscript::ChaiScript>(chaiscript::Std_Lib::library());
+  static std::once_flag once;
+  std::call_once(once,
+                 [&]()
+                 {
+                   InitializeChaiScriptContext(*chai, true);
+                 });
+  return chai;
 }
 }
 
@@ -81,7 +103,7 @@ ChaiScriptScript::ChaiScriptScript(std::string const& path)
   : chai_(
       std::make_unique<chaiscript::ChaiScript>(chaiscript::Std_Lib::library()))
 {
-  InitializeChaiScriptContext(*chai_);
+  InitializeChaiScriptContext(*chai_, true);
 
   auto& log = GetImGuiLogWindow();
 
@@ -156,20 +178,22 @@ ChaiScriptScript::~ChaiScriptScript()
 
 chaiscript::ChaiScript& GetGlobalChaiScriptContext()
 {
-  static chaiscript::ChaiScript chai(chaiscript::Std_Lib::library());
-  static std::once_flag once;
-  std::call_once(once,
-                 [&]()
-                 {
-                   InitializeChaiScriptContext(chai);
-                 });
-  return chai;
+  return *GetGlobalChaiScriptContextPtr();
 }
 
 ChaiScriptInterface& GetChaiScriptInterface() noexcept
 {
   static ChaiScriptImpl chai;
   return chai;
+}
+
+void ReloadDefaultChaiScriptContext(bool run_callbacks)
+{
+  auto& chai = GetGlobalChaiScriptContextPtr();
+  chai = nullptr;
+  chai =
+    std::make_unique<chaiscript::ChaiScript>(chaiscript::Std_Lib::library());
+  InitializeChaiScriptContext(*chai, run_callbacks);
 }
 }
 }

@@ -47,8 +47,38 @@
 
 // TODO: Ensure we set up the D3D9 SDK correctly. http://bit.ly/1KaVNwO
 
+// TODO: Add a mechanism to select EndScene OR Present OR PresentEx so we're not
+// double/triple processing frames! Perhaps as soon as we get a frame one one of
+// them, we 'disable' the rest. There should also be an override mechanism in
+// the config as well as one to reset the state at runtime (for testing
+// purposes).
+
 namespace
 {
+hadesmem::cerberus::Callbacks<hadesmem::cerberus::OnFrameD3D9Callback>&
+  GetOnFrameD3D9Callbacks()
+{
+  static hadesmem::cerberus::Callbacks<hadesmem::cerberus::OnFrameD3D9Callback>
+    callbacks;
+  return callbacks;
+}
+
+hadesmem::cerberus::Callbacks<hadesmem::cerberus::OnResetD3D9Callback>&
+  GetOnResetD3D9Callbacks()
+{
+  static hadesmem::cerberus::Callbacks<hadesmem::cerberus::OnResetD3D9Callback>
+    callbacks;
+  return callbacks;
+}
+
+hadesmem::cerberus::Callbacks<hadesmem::cerberus::OnReleaseD3D9Callback>&
+  GetOnReleaseD3D9Callbacks()
+{
+  static hadesmem::cerberus::Callbacks<
+    hadesmem::cerberus::OnReleaseD3D9Callback> callbacks;
+  return callbacks;
+}
+
 class D3D9Impl : public hadesmem::cerberus::D3D9Interface
 {
 public:
@@ -56,13 +86,13 @@ public:
     std::function<hadesmem::cerberus::OnFrameD3D9Callback> const& callback)
     final
   {
-    auto& callbacks = hadesmem::cerberus::GetOnFrameD3D9Callbacks();
+    auto& callbacks = GetOnFrameD3D9Callbacks();
     return callbacks.Register(callback);
   }
 
   virtual void UnregisterOnFrame(std::size_t id) final
   {
-    auto& callbacks = hadesmem::cerberus::GetOnFrameD3D9Callbacks();
+    auto& callbacks = GetOnFrameD3D9Callbacks();
     return callbacks.Unregister(id);
   }
 
@@ -70,13 +100,13 @@ public:
     std::function<hadesmem::cerberus::OnResetD3D9Callback> const& callback)
     final
   {
-    auto& callbacks = hadesmem::cerberus::GetOnResetD3D9Callbacks();
+    auto& callbacks = GetOnResetD3D9Callbacks();
     return callbacks.Register(callback);
   }
 
   virtual void UnregisterOnReset(std::size_t id) final
   {
-    auto& callbacks = hadesmem::cerberus::GetOnResetD3D9Callbacks();
+    auto& callbacks = GetOnResetD3D9Callbacks();
     return callbacks.Unregister(id);
   }
 
@@ -84,13 +114,13 @@ public:
     std::function<hadesmem::cerberus::OnReleaseD3D9Callback> const& callback)
     final
   {
-    auto& callbacks = hadesmem::cerberus::GetOnReleaseD3D9Callbacks();
+    auto& callbacks = GetOnReleaseD3D9Callbacks();
     return callbacks.Register(callback);
   }
 
   virtual void UnregisterOnRelease(std::size_t id) final
   {
-    auto& callbacks = hadesmem::cerberus::GetOnReleaseD3D9Callbacks();
+    auto& callbacks = GetOnReleaseD3D9Callbacks();
     return callbacks.Unregister(id);
   }
 };
@@ -296,7 +326,7 @@ extern "C" HRESULT WINAPI IDirect3DDevice9_EndScene_Detour(
   {
     AddDeviceToMap(device);
 
-    auto& callbacks = hadesmem::cerberus::GetOnFrameD3D9Callbacks();
+    auto& callbacks = GetOnFrameD3D9Callbacks();
     callbacks.Run(device);
   }
 
@@ -349,8 +379,12 @@ extern "C" HRESULT WINAPI
   {
     AddDeviceToMap(device);
 
-    auto& callbacks = hadesmem::cerberus::GetOnFrameD3D9Callbacks();
+// Disabled until we stop processing the same frame multiple times. (See TODO at
+// top of file.)
+#if 0
+    auto& callbacks = GetOnFrameD3D9Callbacks();
     callbacks.Run(device);
+#endif
   }
 
   auto const present = detour->GetTrampolineT<IDirect3DDevice9_Present_Fn>();
@@ -406,8 +440,12 @@ extern "C" HRESULT WINAPI
   {
     AddDeviceToMap(device);
 
-    auto& callbacks = hadesmem::cerberus::GetOnFrameD3D9Callbacks();
+// Disabled until we stop processing the same frame multiple times. (See TODO at
+// top of file.)
+#if 0
+    auto& callbacks = GetOnFrameD3D9Callbacks();
     callbacks.Run(device);
+#endif
   }
 
   auto const present =
@@ -474,8 +512,12 @@ extern "C" HRESULT WINAPI
   {
     AddDeviceToMap(device);
 
-    auto& callbacks = hadesmem::cerberus::GetOnFrameD3D9Callbacks();
+// Disabled until we stop processing the same frame multiple times. (See TODO at
+// top of file.)
+#if 0
+    auto& callbacks = GetOnFrameD3D9Callbacks();
     callbacks.Run(device);
+#endif
   }
 
   auto const present = detour->GetTrampolineT<IDirect3DSwapChain9_Present_Fn>();
@@ -519,7 +561,7 @@ extern "C" HRESULT WINAPI
   HADESMEM_DETAIL_ASSERT(hook_count > 0);
   if (hook_count == 1)
   {
-    auto& callbacks = hadesmem::cerberus::GetOnResetD3D9Callbacks();
+    auto& callbacks = GetOnResetD3D9Callbacks();
     callbacks.Run(device, presentation_params);
   }
 
@@ -564,7 +606,7 @@ extern "C" HRESULT WINAPI
   HADESMEM_DETAIL_ASSERT(hook_count > 0);
   if (hook_count == 1)
   {
-    auto& callbacks = hadesmem::cerberus::GetOnResetD3D9Callbacks();
+    auto& callbacks = GetOnResetD3D9Callbacks();
     callbacks.Run(device, presentation_params);
   }
 
@@ -589,24 +631,6 @@ namespace hadesmem
 {
 namespace cerberus
 {
-Callbacks<OnFrameD3D9Callback>& GetOnFrameD3D9Callbacks()
-{
-  static Callbacks<OnFrameD3D9Callback> callbacks;
-  return callbacks;
-}
-
-Callbacks<OnResetD3D9Callback>& GetOnResetD3D9Callbacks()
-{
-  static Callbacks<OnResetD3D9Callback> callbacks;
-  return callbacks;
-}
-
-Callbacks<OnReleaseD3D9Callback>& GetOnReleaseD3D9Callbacks()
-{
-  static Callbacks<OnReleaseD3D9Callback> callbacks;
-  return callbacks;
-}
-
 D3D9Interface& GetD3D9Interface() noexcept
 {
   static D3D9Impl d3d9_impl;

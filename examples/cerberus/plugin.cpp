@@ -84,6 +84,14 @@ public:
       load_export(this);
 
       HADESMEM_DETAIL_TRACE_A("Called LoadPlugin export.");
+
+      // TODO: This is a hack. Fix it. We should not need to reset contexts on
+      // load. Extensions should be able to have their OnInitializeChaiScript
+      // callback called to simply extend all existing contexts (or just the
+      // default one?).
+      HADESMEM_DETAIL_TRACE_A("Resetting default ChaiScript context.");
+
+      hadesmem::cerberus::ReloadDefaultChaiScriptContext(true);
     }
     catch (...)
     {
@@ -207,8 +215,7 @@ public:
     return &hadesmem::cerberus::GetRawInputInterface();
   }
 
-  virtual hadesmem::cerberus::ImguiInterface*
-    GetImguiInterface() noexcept final
+  virtual hadesmem::cerberus::ImguiInterface* GetImguiInterface() noexcept final
   {
     return &hadesmem::cerberus::GetImguiInterface();
   }
@@ -221,6 +228,12 @@ public:
 
   void Unload()
   {
+    // TODO: Stop all scripts. See chaiscript bindings todos.
+
+    HADESMEM_DETAIL_TRACE_A("Resetting default ChaiScript context.");
+
+    hadesmem::cerberus::ReloadDefaultChaiScriptContext(false);
+
     HADESMEM_DETAIL_TRACE_FORMAT_A("Unloading plugin. [%p]", base_);
 
     if (!unload_)
@@ -300,8 +313,11 @@ struct PluginsWrapper
 
   ~PluginsWrapper()
   {
+// TODO: Re-enable this. By disabling this we're leaking on unload/reload.
+#if 0
     auto callbacks = GetOnUnloadPluginsCallbacks();
     callbacks.Run();
+#endif
   }
 
   std::vector<Plugin> plugins_;
