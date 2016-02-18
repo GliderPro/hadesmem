@@ -3,25 +3,35 @@
 
 #include "imgui_log.hpp"
 
+#include <hadesmem/detail/trace.hpp>
+
 // TODO: Clean this up.
 
 namespace hadesmem
 {
 namespace cerberus
 {
-void ImGuiLogWindow::Clear()
-{
-  buf_.clear();
-  line_offsets_.clear();
-}
-
 void ImGuiLogWindow::AddLog(const char* fmt, ...) IM_PRINTFARGS(2)
 {
   int old_size = buf_.size();
+
+  // Ensure the buffer doesn't get too large.
+  // TODO: Fix this properly so we don't lose data unnecessarily. We should
+  // remove a line at a time from the top or something similar. A circular
+  // buffer may also be useful? What if we also log to file?
+  if (old_size > kDefaultBufferSize)
+  {
+    HADESMEM_DETAIL_TRACE_A("Clearing log.");
+    old_size = 0;
+    buf_.clear();
+    buf_.append("[Warning]: Log cleared.\n");
+  }
+
   va_list args;
   va_start(args, fmt);
   buf_.appendv(fmt, args);
   va_end(args);
+
   for (int new_size = buf_.size(); old_size < new_size; old_size++)
   {
     if (buf_[old_size] == '\n')

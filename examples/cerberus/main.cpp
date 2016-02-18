@@ -30,6 +30,7 @@
 #include "exception.hpp"
 #include "helpers.hpp"
 #include "imgui.hpp"
+#include "imgui_log.hpp"
 #include "input.hpp"
 #include "module.hpp"
 #include "opengl.hpp"
@@ -197,6 +198,12 @@
 // double-rendered to minimap), Devilian (D3D9, no rendering or input - issue
 // unknown).
 
+// TODO: Re-architect this entire project so we're not as dependent on the
+// initialization order of global statics. Perhaps use of a shared_pointer to
+// manage the lifetime of components would help (assuming that components own a
+// pointer to their dependencies, and we don't run into problems with cyclic
+// references).
+
 namespace
 {
 // This is a nasty hack to call any APIs which may be called from a static
@@ -212,6 +219,10 @@ void UseAllStatics()
   hadesmem::cerberus::GetThisProcess();
 
   hadesmem::PatchDr<void()>::InitializeStatics();
+
+  // TODO: Move this somewhere appropriate.
+  hadesmem::cerberus::GetImGuiLogWindow();
+  hadesmem::cerberus::GetImguiInterface();
 
   // TODO: Add chaiscript.
   auto& module = hadesmem::cerberus::GetModuleInterface();
@@ -325,6 +336,12 @@ void UseAllStatics()
   };
   auto const on_frame_id = render.RegisterOnFrame(on_frame);
   render.UnregisterOnFrame(on_frame_id);
+
+  auto const on_frame_2 = [](hadesmem::cerberus::RenderApi, void*)
+  {
+  };
+  auto const on_frame_2_id = render.RegisterOnFrame2(on_frame_2);
+  render.UnregisterOnFrame2(on_frame_2_id);
 
   auto const on_set_gui_visibility = [](bool, bool)
   {
@@ -552,6 +569,17 @@ void UseAllStatics()
     raw_input.RegisterOnRegisterRawInputDevices(on_register_raw_input_devices);
   raw_input.UnregisterOnRegisterRawInputDevices(
     on_register_raw_input_devices_id);
+
+  // Must be before plugins, because they attempt to reset scripts on unload.
+  // TODO: Move this somewhere appropriate.
+  auto& chai = hadesmem::cerberus::GetChaiScriptInterface();
+  chai.GetGlobalContext();
+  auto const on_init_chai_id = chai.RegisterOnInitializeChaiScriptContext(
+    [](chaiscript::ChaiScript& /*chai*/)
+    {
+    });
+  chai.UnregisterOnInitializeChaiScriptContext(on_init_chai_id);
+  hadesmem::cerberus::GetChaiScriptScripts();
 }
 
 // Check whether any threads are currently executing code in our module. This
@@ -641,8 +669,6 @@ extern "C" __declspec(dllexport) DWORD_PTR Load() noexcept
     // hadesmem::SuspendedProcess suspend{process.GetId()};
 
     auto const& config = hadesmem::cerberus::GetConfig();
-
-    hadesmem::cerberus::GetGlobalChaiScriptContext();
 
     UseAllStatics();
 

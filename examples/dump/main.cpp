@@ -1,6 +1,11 @@
 // Copyright (C) 2010-2015 Joshua Boyce
 // See the file COPYING for copying permission.
 
+#define TCLAP_SETBASE_ZERO 1
+#if !defined(_M_X64)
+#define HAVE_LONG_LONG
+#endif
+
 #include "main.hpp"
 
 #include <algorithm>
@@ -168,12 +173,20 @@
 
 namespace
 {
-// TODO: Clean up this hack (and other global state).
+// TODO: Clean up this hack (and global state).
 thread_local std::wstring g_current_file_path;
 
+// TODO: Clean up global state.
 bool g_quiet = false;
-
 bool g_strings = false;
+bool g_use_disk_headers = false;
+bool g_reconstruct_imports = false;
+bool g_add_new_section = false;
+DWORD g_oep = 0;
+std::wstring g_module_name;
+std::uintptr_t g_module_base = 0;
+std::uintptr_t g_raw_base = 0;
+std::size_t g_raw_size = 0;
 
 template <typename CharT>
 class QuietStreamBuf : public std::basic_streambuf<CharT>
@@ -337,7 +350,42 @@ void DumpProcessEntry(hadesmem::ProcessEntry const& process_entry,
 
   // TODO: Put back the useful console output we used to get when we had this
   // implemented specifically for this tool.
-  hadesmem::detail::DumpMemory(*process);
+  if (g_raw_base)
+  {
+    hadesmem::detail::DumpMemory(*process,
+                                 g_use_disk_headers,
+                                 g_reconstruct_imports,
+                                 g_add_new_section,
+                                 g_oep,
+                                 nullptr,
+                                 reinterpret_cast<void*>(g_raw_base),
+                                 g_raw_size);
+  }
+  else
+  {
+    auto const module_base = [&]() -> void*
+    {
+      if (g_module_base)
+      {
+        return reinterpret_cast<void*>(g_module_base);
+      }
+
+      if (!g_module_name.empty())
+      {
+        hadesmem::Module const module{*process, g_module_name};
+        return module.GetHandle();
+      }
+
+      return nullptr;
+    }();
+
+    hadesmem::detail::DumpMemory(*process,
+                                 g_use_disk_headers,
+                                 g_reconstruct_imports,
+                                 g_add_new_section,
+                                 g_oep,
+                                 module_base);
+  }
 }
 
 void DumpProcesses(bool memonly = false)
@@ -549,16 +597,89 @@ int main(int argc, char* argv[])
                                          -1,
                                          "int",
                                          cmd);
-    TCLAP::ValueArg<DWORD> threads_arg(
+    TCLAP::ValueArg<std::size_t> threads_arg(
       "", "threads", "Number of threads", false, 0, "size_t", cmd);
-    TCLAP::ValueArg<DWORD> queue_factor_arg(
+    TCLAP::ValueArg<std::size_t> queue_factor_arg(
       "", "queue-factor", "Thread queue factor", false, 0, "size_t", cmd);
     TCLAP::SwitchArg strings_arg("", "strings", "Dump strings", cmd);
+    TCLAP::SwitchArg use_disk_headers_arg(
+      "",
+      "use-disk-headers",
+      "Use on-disk PE header for section layout when performing memory dumps",
+      cmd);
+    TCLAP::SwitchArg reconstruct_imports_arg(
+      "", "reconstruct-imports", "Reconstruct imports (build new ILT)", cmd);
+    TCLAP::SwitchArg add_new_section_arg(
+      "",
+      "add-new-section",
+      "Add new section to contain reconstructed imports (as opposed to being "
+      "appended to the existing last section)",
+      cmd);
+    TCLAP::ValueArg<std::string> module_name_arg(
+      "", "module-name", "Module to dump", false, "", "string", cmd);
+    TCLAP::ValueArg<std::uintptr_t> module_base_arg(
+      "", "module-base", "Module to dump", false, 0, "uintptr_t", cmd);
+    TCLAP::ValueArg<std::uintptr_t> raw_base_arg(
+      "", "raw-base", "Raw memory region base", false, 0, "uintptr_t", cmd);
+    TCLAP::ValueArg<std::size_t> raw_size_arg(
+      "", "raw-size", "Raw memory region size", false, 0, "size_t", cmd);
+    TCLAP::ValueArg<DWORD> oep_arg(
+      "",
+      "oep",
+      "Sets AddressOfEntryPoint for specified module",
+      false,
+      0,
+      "DWORD",
+      cmd);
+    // TODO: Add --force-module-path to override the module path detection and
+    // allow us to attempt to dump a PE file even if we don't have in-memory
+    // headers or a file mapping backing the memory region.
+    // TODO: Add --use-disk-iat to toggle using the disk IAT during import
+    // reconstruction. Will be useful to allow using the disk headers for
+    // section layout, but then ignoring it for imports.
     cmd.parse(argc, argv);
 
     g_quiet = quiet_arg.isSet();
-
     g_strings = strings_arg.isSet();
+    g_use_disk_headers = use_disk_headers_arg.isSet();
+    g_reconstruct_imports = reconstruct_imports_arg.isSet();
+    g_add_new_section = add_new_section_arg.isSet();
+    g_oep = oep_arg.getValue();
+    g_module_name =
+      hadesmem::detail::MultiByteToWideChar(module_name_arg.getValue());
+    g_module_base = module_base_arg.getValue();
+    if (g_module_name.empty() && !g_module_base)
+    {
+      if (g_oep)
+      {
+        HADESMEM_DETAIL_THROW_EXCEPTION(
+          hadesmem::Error()
+          << hadesmem::ErrorString("OEP specified without module."));
+      }
+    }
+    g_raw_base = raw_base_arg.getValue();
+    g_raw_size = raw_size_arg.getValue();
+
+    if (g_raw_base && !g_raw_size)
+    {
+      HADESMEM_DETAIL_THROW_EXCEPTION(
+        hadesmem::Error() << hadesmem::ErrorString(
+          "Please specify a size for raw region."));
+    }
+
+    if (g_raw_base && (g_module_base || !g_module_name.empty()))
+    {
+      HADESMEM_DETAIL_THROW_EXCEPTION(
+        hadesmem::Error() << hadesmem::ErrorString(
+          "Please specify either a raw region or a module."));
+    }
+
+    if (!g_module_name.empty() && g_module_base)
+    {
+      HADESMEM_DETAIL_THROW_EXCEPTION(
+        hadesmem::Error() << hadesmem::ErrorString(
+          "Please specify either a module name or a module base."));
+    }
 
     SetWarningsEnabled(warned_arg.getValue());
     SetDynamicWarningsEnabled(warned_file_dynamic_arg.getValue());

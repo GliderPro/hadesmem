@@ -3,6 +3,12 @@
 
 // Modified version of ImGui example and test code.
 
+// TODO: Move our Cerberus GUI and scripting stuff into a lib if possible so we
+// can test it here easily. Alternatively, we could just turn this into a basic
+// D3D app which we can inject into and use for testing that way.
+
+// TODO: Support other renderers (DX9, DX10, DX12, OpenGL).
+
 #include <cctype>
 #include <functional>
 
@@ -233,7 +239,11 @@ int WINAPI wWinMain(HINSTANCE /*instance*/,
 
     ImGui::SetNextWindowSize(ImVec2(320, 250), ImGuiSetCond_FirstUseEver);
     ImGui::SetNextWindowPos(ImVec2(15, 15), ImGuiSetCond_FirstUseEver);
-    ImGui::Begin("Cerberus");
+    if (ImGui::Begin("Sandbox"))
+    {
+      ImGui::Text("Test");
+      ImGui::Text("FPS: %.1f.", ImGui::GetIO().Framerate);
+    }
     ImGui::End();
 
     ImVec4 clear_col = ImColor(114, 144, 154);

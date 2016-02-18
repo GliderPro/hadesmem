@@ -212,5 +212,8 @@
     <ClInclude Include="..\..\..\examples\cerberus\cerberus_bindings.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\..\examples\cerberus\events.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
