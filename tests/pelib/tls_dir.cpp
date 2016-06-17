@@ -30,7 +30,7 @@ void TestTlsDir()
   hadesmem::Process const process(::GetCurrentProcessId());
 
   hadesmem::PeFile pe_file_1(
-    process, ::GetModuleHandleW(nullptr), hadesmem::PeFileType::Image, 0);
+    process, ::GetModuleHandleW(nullptr), hadesmem::PeFileType::kImage, 0);
 
   hadesmem::TlsDir tls_dir_1(process, pe_file_1);
 
@@ -47,7 +47,7 @@ void TestTlsDir()
   for (auto const& mod : modules)
   {
     hadesmem::PeFile const cur_pe_file(
-      process, mod.GetHandle(), hadesmem::PeFileType::Image, 0);
+      process, mod.GetHandle(), hadesmem::PeFileType::kImage, 0);
 
     std::unique_ptr<hadesmem::TlsDir> cur_tls_dir;
     try
@@ -71,7 +71,7 @@ void TestTlsDir()
     cur_tls_dir->SetAddressOfCallBacks(cur_tls_dir->GetAddressOfCallBacks());
     cur_tls_dir->SetSizeOfZeroFill(cur_tls_dir->GetSizeOfZeroFill());
     cur_tls_dir->SetCharacteristics(cur_tls_dir->GetCharacteristics());
-    std::vector<PIMAGE_TLS_CALLBACK> callbacks;
+    std::vector<ULONGLONG> callbacks;
     cur_tls_dir->GetCallbacks(std::back_inserter(callbacks));
     cur_tls_dir->UpdateWrite();
     cur_tls_dir->UpdateRead();
