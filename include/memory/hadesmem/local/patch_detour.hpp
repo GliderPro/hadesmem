@@ -204,7 +204,9 @@ public:
     // heap lock).
     // TODO: Make suspension optional, as in some cases we know that all the
     // threads are suspended already (e.g. creation-time injection).
-    SuspendedProcess const suspended_process{process_->GetId()};
+    // Need to fix the potential deadlock problem, as well as the perf 
+    // problem, before re-enabling this.
+    //SuspendedProcess const suspended_process{process_->GetId()};
 
     std::uint32_t const kMaxInstructionLen = 15;
     std::uint32_t const kTrampSize = kMaxInstructionLen * 3;
@@ -213,6 +215,7 @@ public:
     auto tramp_cur = static_cast<std::uint8_t*>(trampoline_->GetBase());
 
     auto const detour_raw = detour_.target<DetourFuncRawT>();
+    (void)detour_raw;
     HADESMEM_DETAIL_TRACE_FORMAT_A(
       "This = %p, Target = %p, Detour = %p, Trampoline = %p.",
       this,

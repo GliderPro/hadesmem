@@ -344,8 +344,7 @@ struct SYSTEM_PROCESS_INFORMATION_EXTENSION
 {
   PROCESS_DISK_COUNTERS DiskCounters;
   ULONG64 ContextSwitches;
-  union
-  {
+  union {
     ULONG Flags;
     struct
     {
@@ -568,8 +567,7 @@ struct FILE_OBJECTID_INFORMATION
 {
   LONGLONG FileReference;
   UCHAR ObjectId[16];
-  union
-  {
+  union {
     struct
     {
       UCHAR BirthVolumeId[16];
@@ -725,8 +723,7 @@ struct PEB
   ULONG ProcessInJob : 1;
   ULONG ProcessInitializing : 1;
   ULONG ReservedBits0 : 30;
-  union
-  {
+  union {
     PVOID KernelCallbackTable;
     PVOID UserSharedInfoPtr;
   };
@@ -889,6 +886,8 @@ struct TEB
   LARGE_INTEGER WaitReasonBitMap;
 };
 
+#pragma managed(push, off)
+
 #if defined(HADESMEM_DETAIL_ARCH_X64)
 inline TEB* GetCurrentTeb()
 {
@@ -902,6 +901,8 @@ inline TEB* GetCurrentTeb()
 #else
 #error "[HadesMem] Unsupported architecture."
 #endif
+
+#pragma managed(pop)
 
 typedef struct _SYSTEM_TIMEOFDAY_INFORMATION
 {
@@ -966,8 +967,7 @@ typedef struct _SYSTEM_HANDLE_INFORMATION
   SYSTEM_HANDLE_TABLE_ENTRY_INFO Handles[1];
 } SYSTEM_HANDLE_INFORMATION, *PSYSTEM_HANDLE_INFORMATION;
 
-typedef enum _OBJECT_INFORMATION_CLASS
-{
+typedef enum _OBJECT_INFORMATION_CLASS {
   ObjectBasicInformation,
   ObjectNameInformation,
   ObjectTypeInformation,
@@ -981,6 +981,14 @@ typedef struct _OBJECT_NAME_INFORMATION
 {
   UNICODE_STRING Name;
 } OBJECT_NAME_INFORMATION, *POBJECT_NAME_INFORMATION;
+
+typedef struct _RTL_VEH_NODE
+{
+  _RTL_VEH_NODE* Prev;
+  _RTL_VEH_NODE* Next;
+  UINT Refs;
+  PVOID Handler;
+} VEH_NODE, *PVEH_NODE;
 }
 }
 }
