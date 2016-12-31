@@ -19,6 +19,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\..\include\memory\hadesmem\acl.hpp" />
     <ClInclude Include="..\..\..\include\memory\hadesmem\alloc.hpp" />
     <ClInclude Include="..\..\..\include\memory\hadesmem\call.hpp" />
     <ClInclude Include="..\..\..\include\memory\hadesmem\config.hpp" />
@@ -127,7 +128,7 @@
     <ProjectGuid>{F4A13F46-F555-4851-9172-B50F59336973}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
     <RootNamespace>hadesmem</RootNamespace>
-    <WindowsTargetPlatformVersion>10.0.10586.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>$(LatestTargetPlatformVersion)</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
